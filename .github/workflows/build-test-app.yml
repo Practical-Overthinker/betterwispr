@@ -1,0 +1,33 @@
+# Build an ad-hoc signed test app for this feature branch.
+name: Build test app
+
+on:
+  push:
+    branches: ["claude/build-mute-feature-20261104"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: xcodebuild -version && swift --version
+      - name: Build app (release, arm64)
+        run: echo "APP=$(CODESIGN_IDENTITY=- ./scripts/build-app.sh release arm64 | tail -1)" >> "$GITHUB_ENV"
+      - name: Zip app
+        run: ditto -c -k --keepParent "$APP" BetterWispr-arm64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BetterWispr-arm64-mute-feature
+          path: BetterWispr-arm64.zip
+          retention-days: 14
+      - name: Unit tests
+        timeout-minutes: 15
+        run: swift test
+      - name: Evaluator checks
+        run: python3 Tests/evaluate_check.py
